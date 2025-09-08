@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dify 工作流演示</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg:#f7f7fb;
+        --card:#ffffff;
+        --muted:#6b7280;
+        --text:#111827;
+        --brand:#2563eb;
+        --border:#e5e7eb;
+        --input:#f9fafb;
+        --ring: rgba(37,99,235,0.35);
+      }
+      *{ box-sizing:border-box; }
+      body{
+        margin:0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+        background:linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+        color:var(--text);
+      }
+      .container{ max-width: 880px; margin: 56px auto; padding: 0 24px; }
+      .card{ background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px; box-shadow: 0 20px 40px rgba(0,0,0,0.06); }
+      h1{ margin: 0 0 12px; font-size: 26px; }
+      p.sub{ margin: 0 0 22px; color: var(--muted); }
+      form{ display:flex; flex-direction: column; gap:14px; margin-bottom: 18px; }
+      label{ font-size: 13px; color: #374151; font-weight: 600; }
+      .field{ display:flex; flex-direction: column; gap:8px; }
+      textarea,
+      input[type="text"]{
+        padding: 16px 18px;
+        border-radius: 12px;
+        border:1px solid var(--border);
+        background:var(--input);
+        color:var(--text);
+        outline: none;
+        transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+        font-size: 16px;
+        height: 190px;
+      }
+      textarea:focus,
+      input[type="text"]:focus{
+        border-color: var(--brand);
+        box-shadow: 0 0 0 4px var(--ring);
+        background: #fff;
+      }
+      .actions{ display:flex; gap:12px; align-items:center; }
+      button{
+        padding: 12px 16px;
+        background: var(--brand);
+        color:white;
+        border:none;
+        border-radius:12px;
+        cursor:pointer;
+        font-weight:600;
+        box-shadow: 0 6px 14px rgba(37,99,235,0.25);
+        transition: transform .05s ease, box-shadow .15s ease, opacity .2s ease;
+      }
+      button:hover{ box-shadow: 0 10px 18px rgba(37,99,235,0.28); }
+      button:active{ transform: translateY(1px); }
+      button:disabled{ opacity:.7; cursor:not-allowed; box-shadow:none; }
+      .result{ white-space: pre-wrap; line-height: 1.75; color: #111827; background:#fff; border:1px solid var(--border); border-radius: 12px; padding:16px; }
+      .muted{ color: var(--muted); }
+      .error{ color: #b91c1c; white-space: pre-wrap; }
+      .tip{ font-size: 12px; color: var(--muted); }
+
+      .toolbar{ display:flex; flex-wrap: wrap; gap:8px; padding:8px; border:1px solid var(--border); border-radius:12px; background:#fff; margin-bottom:10px; }
+      .toolbar button{
+        padding: 6px 10px;
+        background:#f3f4f6;
+        color:#111827;
+        border:1px solid var(--border);
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:600;
+      }
+      .toolbar button:hover{ background:#e5e7eb; }
+      .toolbar .sep{ width:1px; height:24px; background:#e5e7eb; margin:0 4px; align-self:center; }
+      .result[contenteditable="true"]:focus{ outline:none; box-shadow: 0 0 0 4px var(--ring); border-color: var(--brand); background:#fff; }
+      .muted{ color: var(--muted); }
+      .error{ color: #b91c1c; white-space: pre-wrap; }
+      .tip{ font-size: 12px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>网评体文章生成</h1>
+        <p class="sub">输入热点事件和您的观点，调用后端触发 Dify 工作流，返回 LLM 文章。</p>
+        <form id="wf-form">
+          <textarea id="event" placeholder="请输入热点事件：" required></textarea>
+          <textarea id="main_point" placeholder="请输入您的观点：" required></textarea>
+          <button id="submit" type="submit">生成文章</button>
+        </form>
+        <div id="status" class="muted"></div>
+        <div class="editor">
+          <div id="editor-toolbar" class="toolbar">
+            <button type="button" data-cmd="bold">加粗</button>
+            <button type="button" data-cmd="italic">斜体</button>
+            <button type="button" data-cmd="underline">下划线</button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="formatBlock" data-value="H1">标题1</button>
+            <button type="button" data-cmd="formatBlock" data-value="H2">标题2</button>
+            <button type="button" data-cmd="formatBlock" data-value="P">正文</button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="insertUnorderedList">无序列表</button>
+            <button type="button" data-cmd="insertOrderedList">有序列表</button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="undo">撤销</button>
+            <button type="button" data-cmd="redo">重做</button>
+            <div class="sep"></div>
+            <button type="button" id="copy-output">复制</button>
+            <button type="button" id="download-output">下载</button>
+          </div>
+          <div id="output" class="result" contenteditable="true"></div>
+        </div>
+        <div id="error" class="error"></div>
+      </div>
+    </div>
+    <script>
+            const form = document.getElementById('wf-form');
+      const input = document.getElementById('event');
+      const mainPointInput = document.getElementById('main_point');
+      const submitBtn = document.getElementById('submit');
+      const statusEl = document.getElementById('status');
+      const outEl = document.getElementById('output');
+      const errEl = document.getElementById('error');
+      const toolbarEl = document.getElementById('editor-toolbar');
+      const copyBtn = document.getElementById('copy-output');
+      const downloadBtn = document.getElementById('download-output');
+
+      // 工具栏事件（使用 execCommand 简易实现）
+      toolbarEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const cmd = btn.dataset.cmd;
+        const value = btn.dataset.value || null;
+        // 确保作用在输出区域
+        outEl.focus();
+        if (cmd === 'formatBlock') {
+          document.execCommand('formatBlock', false, value);
+        } else {
+          document.execCommand(cmd, false, value);
+        }
+      });
+
+      // 复制
+      copyBtn.addEventListener('click', async () => {
+        const html = outEl.innerHTML;
+        try {
+          await navigator.clipboard.writeText(html);
+          copyBtn.textContent = '已复制';
+          setTimeout(() => (copyBtn.textContent = '复制'), 1200);
+        } catch {
+          // 回退方案
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(outEl);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          document.execCommand('copy');
+          sel.removeAllRanges();
+        }
+      });
+
+      // 下载为 HTML 文件
+      downloadBtn.addEventListener('click', () => {
+        const blob = new Blob([outEl.innerHTML], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'article.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        outEl.textContent = '';
+        errEl.textContent = '';
+        submitBtn.disabled = true;
+        statusEl.textContent = '正在生成，请稍候…';
+        try {
+          const res = await fetch('/api/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: input.value.trim(), main_point: mainPointInput.value.trim() })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data && (data.details?.message || data.error || JSON.stringify(data)) || '请求失败');
+          }
+          if (data.article) {
+            outEl.textContent = data.article;
+          } else if (data.raw) {
+            outEl.textContent = JSON.stringify(data.raw, null, 2);
+          } else {
+            outEl.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (err) {
+          errEl.textContent = String(err.message || err);
+        } finally {
+          statusEl.textContent = '';
+          submitBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

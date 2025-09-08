@@ -6,3 +6,5 @@ npm install  安装package.json中的依赖
 
 # 2
 npm start  开启服务器
+
+ps：记得修改成你的url和key
